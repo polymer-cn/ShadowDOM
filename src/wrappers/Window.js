@@ -13,7 +13,7 @@
   var wrap = scope.wrap;
   var renderAllPending = scope.renderAllPending;
 
-  var OriginalWindow = window.Window;
+  var OriginalWindow = window.constructor;
 
   function Window(impl) {
     EventTarget.call(this, impl);
