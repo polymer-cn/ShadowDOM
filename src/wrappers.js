@@ -252,7 +252,7 @@ window.ShadowDOMPolyfill = {};
   var OriginalEventTarget = window.EventTarget;
   var OriginalEvent = window.Event;
   var OriginalNode = window.Node;
-  var OriginalWindow = window.Window;
+  var OriginalWindow = window.constructor;
   var OriginalRange = window.Range;
   var OriginalCanvasRenderingContext2D = window.CanvasRenderingContext2D;
   var OriginalWebGLRenderingContext = window.WebGLRenderingContext;
@@ -293,8 +293,17 @@ window.ShadowDOMPolyfill = {};
       return null;
 
     assert(isNative(impl));
-    return impl.polymerWrapper_ ||
-        (impl.polymerWrapper_ = new (getWrapperConstructor(impl))(impl));
+    var wrapper;
+    if (!impl.polymerWrapper_) {
+      wrapper = getWrapperConstructor(impl);
+      // MIUI don't have HTMLUnknownElement
+      if (wrapper === HTMLElement) {
+        wrapper = wrappers.HTMLUnknownElement;
+      }
+      impl.polymerWrapper_ = new wrapper(impl);
+    }
+
+    return impl.polymerWrapper_;
   }
 
   /**

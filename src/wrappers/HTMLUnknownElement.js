@@ -26,6 +26,8 @@
     HTMLElement.call(this, node);
   }
   HTMLUnknownElement.prototype = Object.create(HTMLElement.prototype);
-  registerWrapper(OriginalHTMLUnknownElement, HTMLUnknownElement);
+  // MIUI don't have HTMLUnknownElement
+  if (OriginalHTMLUnknownElement)
+    registerWrapper(OriginalHTMLUnknownElement, HTMLUnknownElement);
   scope.wrappers.HTMLUnknownElement = HTMLUnknownElement;
 })(window.ShadowDOMPolyfill);

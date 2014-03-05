@@ -14,7 +14,7 @@
   var unwrapIfNeeded = scope.unwrapIfNeeded;
   var wrap = scope.wrap;
 
-  var OriginalWindow = window.Window;
+  var OriginalWindow = window.constructor;
   var originalGetComputedStyle = window.getComputedStyle;
   var originalGetSelection = window.getSelection;
 

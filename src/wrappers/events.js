@@ -380,6 +380,10 @@
       return wrap(constructEvent(OriginalEvent, 'Event', type, options));
   }
   Event.prototype = {
+    // UC crash when call event.detail, so make a adapter with event.__detail
+    get detail() {
+      return this.impl.__detail || this.impl.detail;
+    },
     get target() {
       return targetTable.get(this);
     },
@@ -431,10 +435,14 @@
   function registerGenericEvent(name, SuperEvent, prototype) {
     var OriginalEvent = window[name];
     var GenericEvent = function(type, options) {
-      if (type instanceof OriginalEvent)
-        this.impl = type;
-      else
+      // MIUI 4.1 browser error when 'HTMLImportsLoaded' instanceof OriginalEvent
+      if (typeof type == 'string') {
         return wrap(constructEvent(OriginalEvent, name, type, options));
+      } else if (type instanceof OriginalEvent) {
+         this.impl = type;
+      } else {
+         return wrap(constructEvent(OriginalEvent, name, type, options));
+      }
     };
     GenericEvent.prototype = Object.create(SuperEvent.prototype);
     if (prototype)
@@ -513,6 +521,10 @@
           options[key] : defaultDict[key];
       if (key === 'relatedTarget')
         v = unwrap(v);
+      // UC crash when call event.detail, so make a adapter with event.__detail
+      if (key === "detail") {
+        event.__detail = v;
+      }
       args.push(v);
     });
     event['init' + name].apply(event, args);
@@ -521,6 +533,12 @@
 
   if (!supportsEventConstructors) {
     var configureEventConstructor = function(name, initDict, superName) {
+      function mixin(to, from) {
+        Object.keys(from).forEach(function(key) {
+          to[key] = from[key];
+        });
+        return to;
+      }
       if (superName) {
         var superDict = defaultInitDicts[superName];
         initDict = mixin(mixin({}, superDict), initDict);
@@ -603,7 +621,7 @@
     'dispatchEvent'
   ];
 
-  [Node, Window].forEach(function(constructor) {
+  [Node, window.constructor].forEach(function(constructor) {
     var p = constructor.prototype;
     methodNames.forEach(function(name) {
       Object.defineProperty(p, name + '_', {value: p[name]});
