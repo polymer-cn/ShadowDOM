@@ -4,6 +4,10 @@
 
 (function(scope) {
   'use strict';
+  if (!document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1")) {
+  	// UC and QQ don't support, no SVGTitleElement constructor
+  	return;
+  }
 
   var registerObject = scope.registerObject;
 
