@@ -11,6 +11,8 @@
   var wrap = scope.wrap;
 
   var OriginalSVGUseElement = window.SVGUseElement;
+  // qq don't have it
+  if (!OriginalSVGUseElement) return;
 
   // IE uses SVGElement as parent interface, SVG2 (Blink & Gecko) uses
   // SVGGraphicsElement. Use the <g> element to get the right prototype.

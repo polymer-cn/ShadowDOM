@@ -10,7 +10,9 @@
   var unwrapIfNeeded = scope.unwrapIfNeeded;
   var wrap = scope.wrap;
 
-  var OriginalSelection = window.Selection;
+  var selection = window.getSelection();
+  // uc don't have window.Selection
+  var OriginalSelection = selection.constructor;
 
   function Selection(impl) {
     this.impl = impl;
@@ -60,7 +62,7 @@
   // [RaisesException, ImplementedAs=collapse] void setPosition([Default=Undefined] optional Node node,
   //                  [Default=Undefined] optional long offset);
 
-  registerWrapper(window.Selection, Selection, window.getSelection());
+  registerWrapper(OriginalSelection, Selection, selection);
 
   scope.wrappers.Selection = Selection;
 
