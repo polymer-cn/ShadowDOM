@@ -20,8 +20,10 @@
     'src/wrappers.js',
     'src/microtask.js',
     'src/MutationObserver.js',
+    "src/TreeScope.js",
     'src/wrappers/events.js',
     'src/wrappers/NodeList.js',
+    'src/wrappers/HTMLCollection.js',
     'src/wrappers/Node.js',
     'src/querySelector.js',
     'src/wrappers/node-interfaces.js',
@@ -37,6 +39,10 @@
     'src/wrappers/HTMLMediaElement.js',
     'src/wrappers/HTMLAudioElement.js',
     'src/wrappers/HTMLOptionElement.js',
+    'src/wrappers/HTMLSelectElement.js',
+    'src/wrappers/HTMLTableElement.js',
+    'src/wrappers/HTMLTableSectionElement.js',
+    'src/wrappers/HTMLTableRowElement.js',
     'src/wrappers/HTMLUnknownElement.js',
     'src/wrappers/SVGElement.js',
     'src/wrappers/SVGUseElement.js',
@@ -51,6 +57,7 @@
     'src/wrappers/Selection.js',
     'src/wrappers/Document.js',
     'src/wrappers/Window.js',
+    'src/wrappers/DataTransfer.js',
     'src/wrappers/override-constructors.js'
   ].forEach(function(src) {
     document.write('<script src="' + base + src + '"></script>');

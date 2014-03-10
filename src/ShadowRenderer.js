@@ -11,6 +11,7 @@
   var Node = scope.wrappers.Node;
   var ShadowRoot = scope.wrappers.ShadowRoot;
   var assert = scope.assert;
+  var getTreeScope = scope.getTreeScope;
   var mixin = scope.mixin;
   var oneOf = scope.oneOf;
   var unwrap = scope.unwrap;
@@ -116,7 +117,10 @@
   }
 
   function getDistributedChildNodes(insertionPoint) {
-    return distributedChildNodesTable.get(insertionPoint);
+    var rv = distributedChildNodesTable.get(insertionPoint);
+    if (!rv)
+      distributedChildNodesTable.set(insertionPoint, rv = []);
+    return rv;
   }
 
   function getChildNodesSnapshot(node) {
@@ -224,9 +228,16 @@
   var renderTimer;
 
   function renderAllPending() {
+    // TODO(arv): Order these in document order. That way we do not have to
+    // render something twice.
     for (var i = 0; i < pendingDirtyRenderers.length; i++) {
-      pendingDirtyRenderers[i].render();
+      var renderer = pendingDirtyRenderers[i];
+      var parentRenderer = renderer.parentRenderer;
+      if (parentRenderer && parentRenderer.dirty)
+        continue;
+      renderer.render();
     }
+
     pendingDirtyRenderers = [];
   }
 
@@ -250,10 +261,9 @@
   }
 
   function getShadowRootAncestor(node) {
-    for (; node; node = node.parentNode) {
-      if (node instanceof ShadowRoot)
-        return node;
-    }
+    var root = getTreeScope(node).root;
+    if (root instanceof ShadowRoot)
+      return root;
     return null;
   }
 
@@ -368,6 +378,10 @@
         renderNode.sync();
 
       this.dirty = false;
+    },
+
+    get parentRenderer() {
+      return getTreeScope(this.host).renderer;
     },
 
     invalidate: function() {
