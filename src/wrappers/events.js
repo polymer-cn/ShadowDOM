@@ -165,13 +165,32 @@
     return getTreeScope(a) === getTreeScope(b);
   }
 
+  // pendingError is used to rethrow the first error we got during an event
+  // dispatch. The browser actually reports all errors but to do that we would
+  // need to rethrow the error asynchronously.
+  var pendingError;
+
   function dispatchOriginalEvent(originalEvent) {
     // Make sure this event is only dispatched once.
     if (handledEventsTable.get(originalEvent))
       return;
     handledEventsTable.set(originalEvent, true);
+    dispatchEvent(wrap(originalEvent), wrap(originalEvent.target));
+    if (pendingError) {
+      var err = pendingError;
+      pendingError = null;
+      throw err;
+    }
+  }
 
-    return dispatchEvent(wrap(originalEvent), wrap(originalEvent.target));
+  function isLoadLikeEvent(event) {
+    switch (event.type) {
+      case 'beforeunload':
+      case 'load':
+      case 'unload':
+        return true;
+    }
+    return false;
   }
 
   function dispatchEvent(event, originalWrapperTarget) {
@@ -183,15 +202,15 @@
     scope.renderAllPending();
     var eventPath = retarget(originalWrapperTarget);
 
-    // For window load events the load event is dispatched at the window but
+    // For window "load" events the "load" event is dispatched at the window but
     // the target is set to the document.
     //
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#the-end
     //
     // TODO(arv): Find a less hacky way to do this.
-    if (event.type === 'load' &&
-        eventPath.length === 2 &&
-        eventPath[0].target instanceof wrappers.Document) {
+    if (eventPath.length === 2 &&
+        eventPath[0].target instanceof wrappers.Document &&
+        isLoadLikeEvent(event)) {
       eventPath.shift();
     }
 
@@ -261,17 +280,26 @@
 
     if ('relatedTarget' in event) {
       var originalEvent = unwrap(event);
+      var unwrappedRelatedTarget = originalEvent.relatedTarget;
+
       // X-Tag sets relatedTarget on a CustomEvent. If they do that there is no
       // way to have relatedTarget return the adjusted target but worse is that
       // the originalEvent might not have a relatedTarget so we hit an assert
       // when we try to wrap it.
-      if (originalEvent.relatedTarget) {
-        var relatedTarget = wrap(originalEvent.relatedTarget);
+      if (unwrappedRelatedTarget) {
+        // In IE we can get objects that are not EventTargets at this point.
+        // Safari does not have an EventTarget interface so revert to checking
+        // for addEventListener as an approximation.
+        if (unwrappedRelatedTarget instanceof Object &&
+            unwrappedRelatedTarget.addEventListener) {
+          var relatedTarget = wrap(unwrappedRelatedTarget);
 
-        var adjusted = adjustRelatedTarget(currentTarget, relatedTarget);
-        if (adjusted === target)
-          return true;
-
+          var adjusted = adjustRelatedTarget(currentTarget, relatedTarget);
+          if (adjusted === target)
+            return true;
+        } else {
+          adjusted = null;
+        }
         relatedTargetTable.set(event, adjusted);
       }
     }
@@ -306,10 +334,8 @@
           return false;
 
       } catch (ex) {
-        if (window.onerror)
-          window.onerror(ex.message);
-        else
-          console.error(ex, ex.stack);
+        if (!pendingError)
+          pendingError = ex;
       }
     }
 
@@ -358,10 +384,14 @@
    * @constructor
    */
   function Event(type, options) {
-    if (type instanceof OriginalEvent)
-      this.impl = type;
-    else
+    if (type instanceof OriginalEvent) {
+      var impl = type;
+      if (!OriginalBeforeUnloadEvent && impl.type === 'beforeunload')
+        return new BeforeUnloadEvent(impl);
+      this.impl = impl;
+    } else {
       return wrap(constructEvent(OriginalEvent, 'Event', type, options));
+    }
   }
   Event.prototype = {
     // UC crash when call event.detail, so make a adapter with event.__detail
@@ -452,7 +482,11 @@
 
   var relatedTargetProto = {
     get relatedTarget() {
-      return relatedTargetTable.get(this) || wrap(unwrap(this).relatedTarget);
+      var relatedTarget = relatedTargetTable.get(this);
+      // relatedTarget can be null.
+      if (relatedTarget !== undefined)
+        return relatedTarget;
+      return wrap(unwrap(this).relatedTarget);
     }
   };
 
@@ -551,8 +585,12 @@
     configureEventConstructor('FocusEvent', {relatedTarget: null}, 'UIEvent');
   }
 
+  // Safari 7 does not yet have BeforeUnloadEvent.
+  // https://bugs.webkit.org/show_bug.cgi?id=120849
+  var OriginalBeforeUnloadEvent = window.BeforeUnloadEvent;
+
   function BeforeUnloadEvent(impl) {
-    Event.call(this);
+    Event.call(this, impl);
   }
   BeforeUnloadEvent.prototype = Object.create(Event.prototype);
   mixin(BeforeUnloadEvent.prototype, {
@@ -563,6 +601,9 @@
       this.impl.returnValue = v;
     }
   });
+
+  if (OriginalBeforeUnloadEvent)
+    registerWrapper(OriginalBeforeUnloadEvent, BeforeUnloadEvent);
 
   function isValidListener(fun) {
     if (typeof fun === 'function')

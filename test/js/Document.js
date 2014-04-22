@@ -93,6 +93,10 @@ htmlSuite('Document', function() {
     var nsTwo = 'http://two.com';
     var aOne = div.appendChild(document.createElementNS(nsOne, 'a'));
     var aTwo = div.appendChild(document.createElementNS(nsTwo, 'a'));
+    var aNull = div.appendChild(document.createElementNS(null, 'a'));
+    var bOne = div.appendChild(document.createElementNS(nsOne, 'b'));
+    var bTwo = div.appendChild(document.createElementNS(nsTwo, 'b'));
+    var bNull = div.appendChild(document.createElementNS(null, 'b'));
 
     var all = div.getElementsByTagNameNS(nsOne, 'a');
     assert.equal(all.length, 1);
@@ -102,10 +106,36 @@ htmlSuite('Document', function() {
     assert.equal(all.length, 1);
     assert.equal(all[0], aTwo);
 
+    var all = div.getElementsByTagNameNS(null, 'a');
+    assert.equal(all.length, 1);
+    assert.equal(all[0], aNull);
+
+    var all = div.getElementsByTagNameNS('', 'a');
+    assert.equal(all.length, 1);
+    assert.equal(all[0], aNull);
+
     var all = div.getElementsByTagNameNS('*', 'a');
-    assert.equal(all.length, 2);
+    assert.equal(all.length, 3);
     assert.equal(all[0], aOne);
     assert.equal(all[1], aTwo);
+    assert.equal(all[2], aNull);
+
+    var all = div.getElementsByTagNameNS(nsOne, '*');
+    assert.equal(all.length, 2);
+    assert.equal(all[0], aOne);
+    assert.equal(all[1], bOne);
+
+    var all = div.getElementsByTagNameNS('*', '*');
+    assert.equal(all.length, 6);
+    assert.equal(all[0], aOne);
+    assert.equal(all[1], aTwo);
+    assert.equal(all[2], aNull);
+    assert.equal(all[3], bOne);
+    assert.equal(all[4], bTwo);
+    assert.equal(all[5], bNull);
+
+    var all = div.getElementsByTagNameNS('*', 'A');
+    assert.equal(all.length, 0);
   });
 
   test('querySelectorAll', function() {
@@ -357,7 +387,7 @@ htmlSuite('Document', function() {
     };
 
     var A = document.registerElement('x-a-span',
-      {prototype: aPrototype, extends: 'span'});
+        {prototype: aPrototype, extends: 'span'});
 
     var a1 = document.createElement('span', 'x-a-span');
     assert.equal('span', a1.localName);
@@ -552,6 +582,28 @@ htmlSuite('Document', function() {
     // re-wrap after registration to update wrapper
     ShadowDOMPolyfill.rewrap(ShadowDOMPolyfill.unwrap(div.firstChild));
     assert.isTrue(div.firstChild.isCustom);
+  });
+
+  test('document.registerElement optional option', function() {
+    if (!document.registerElement)
+      return;
+
+    document.registerElement('x-a7');
+    var a = document.createElement('x-a7');
+    assert.equal(Object.getPrototypeOf(Object.getPrototypeOf(a)),
+                 HTMLElement.prototype);
+
+    document.registerElement('x-a8', {});
+    var a2 = document.createElement('x-a8');
+    assert.equal(Object.getPrototypeOf(Object.getPrototypeOf(a2)),
+                 HTMLElement.prototype);
+
+    document.registerElement('x-a-span-2', {extends: 'span'});
+    var a3 = document.createElement('span', 'x-a-span-2');
+    assert.equal(Object.getPrototypeOf(Object.getPrototypeOf(a3)),
+                 HTMLElement.prototype);
+    a3.localName = 'span';
+    assert.equal('<span is="x-a-span-2"></span>', a3.outerHTML);
   });
 
   htmlTest('html/document-write.html');

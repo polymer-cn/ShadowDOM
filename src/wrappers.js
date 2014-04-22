@@ -16,6 +16,11 @@ window.ShadowDOMPolyfill = {};
   // even when the exception is caught
   var hasEval = !('securityPolicy' in document) ||
       document.securityPolicy.allowsEval;
+
+  if (typeof chrome !== 'undefined' && chrome.app && chrome.app.runtime) {
+    hasEval = false;
+  }
+
   if (hasEval) {
     try {
       var f = new Function('', 'return true;');
@@ -35,14 +40,18 @@ window.ShadowDOMPolyfill = {};
   var getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 
   function mixin(to, from) {
-    getOwnPropertyNames(from).forEach(function(name) {
+    var names = getOwnPropertyNames(from);
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
       defineProperty(to, name, getOwnPropertyDescriptor(from, name));
-    });
+    }
     return to;
   };
 
   function mixinStatics(to, from) {
-    getOwnPropertyNames(from).forEach(function(name) {
+    var names = getOwnPropertyNames(from);
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
       switch (name) {
         case 'arguments':
         case 'caller':
@@ -50,10 +59,10 @@ window.ShadowDOMPolyfill = {};
         case 'name':
         case 'prototype':
         case 'toString':
-          return;
+          continue;
       }
       defineProperty(to, name, getOwnPropertyDescriptor(from, name));
-    });
+    }
     return to;
   };
 
@@ -62,6 +71,18 @@ window.ShadowDOMPolyfill = {};
       if (propertyNames[i] in object)
         return propertyNames[i];
     }
+  }
+
+  var nonEnumerableDataDescriptor = {
+    value: undefined,
+    configurable: true,
+    enumerable: false,
+    writable: true
+  };
+
+  function defineNonEnumerableDataProperty(object, name, value) {
+    nonEnumerableDataDescriptor.value = value;
+    defineProperty(object, name, nonEnumerableDataDescriptor);
   }
 
   // Mozilla's old DOM bindings are bretty busted:
@@ -208,12 +229,9 @@ window.ShadowDOMPolyfill = {};
     addForwardingProperties(nativePrototype, wrapperPrototype);
     if (opt_instance)
       registerInstanceProperties(wrapperPrototype, opt_instance);
-    defineProperty(wrapperPrototype, 'constructor', {
-      value: wrapperConstructor,
-      configurable: true,
-      enumerable: false,
-      writable: true
-    });
+
+    defineNonEnumerableDataProperty(
+        wrapperPrototype, 'constructor', wrapperConstructor);
     // Set it again. Some VMs optimizes objects that are used as prototypes.
     wrapperConstructor.prototype = wrapperPrototype;
   }
@@ -352,12 +370,15 @@ window.ShadowDOMPolyfill = {};
     node.polymerWrapper_ = wrapper;
   }
 
+  var getterDescriptor = {
+    get: undefined,
+    configurable: true,
+    enumerable: true
+  };
+
   function defineGetter(constructor, name, getter) {
-    defineProperty(constructor.prototype, name, {
-      get: getter,
-      configurable: true,
-      enumerable: true
-    });
+    getterDescriptor.get = getter;
+    defineProperty(constructor.prototype, name, getterDescriptor);
   }
 
   function defineWrapGetter(constructor, name) {
